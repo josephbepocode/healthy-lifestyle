@@ -1,0 +1,69 @@
+/* ---------- Shopping ---------- */
+.shopping .lbl { display: block; color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+.budget-shop { display: flex; flex-direction: column; gap: 12px; }
+.big-total { font-family: var(--display); font-size: 2.4rem; font-weight: 700; letter-spacing: -.03em; color: var(--accent); text-shadow: 0 0 26px rgba(var(--accent-rgb), .4); font-variant-numeric: tabular-nums; line-height: 1.05; }
+.big-total.neg { text-shadow: 0 0 26px rgba(255,107,107,.4); }
+.budget-side { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; } .budget-side b { font-family: var(--display); font-size: 1.5rem; }
+.staples { padding: 16px 18px; border-radius: 22px; background: var(--glass); border: 1px solid var(--stroke); display: flex; flex-direction: column; gap: 12px; }
+.chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.staple { display: flex; flex-direction: column; gap: 1px; text-align: left; padding: 9px 13px; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid var(--stroke); transition: transform .15s, border-color .2s, background .2s; }
+.staple span { font-weight: 600; font-size: .86rem; } .staple small { color: var(--muted); font-size: .7rem; }
+.staple:hover { border-color: rgba(var(--accent-rgb), .55); background: rgba(var(--accent-rgb), .07); transform: translateY(-2px); } .staple:active { transform: scale(.94); }
+.staple.on { border-color: rgba(var(--accent-rgb), .5); } .staple.on small { color: var(--accent); }
+.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; } .sec-head h2 { font-size: 1.4rem; } .count { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; margin-left: 6px; border-radius: 99px; background: rgba(var(--accent-rgb), .15); color: var(--accent); font-size: .85rem; vertical-align: middle; }
+.shop-group { display: flex; flex-direction: column; gap: 8px; }
+.store-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 6px 2px; font-size: 1.15rem; border-bottom: 2px solid var(--stroke); } .store-h small { color: var(--muted); font-weight: 400; font-size: .78rem; font-family: var(--font); letter-spacing: 0; }
+.store-h.FreshCo { border-color: rgba(var(--accent-rgb), .5); } .store-h.Skyfarm { border-color: rgba(255,184,107,.55); }
+.aisle-h { margin: 10px 0 6px; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
+.shop-list { display: flex; flex-direction: column; gap: 8px; }
+.shop-li { max-height: 140px; transition: max-height .4s ease, margin .4s ease, opacity .3s; }
+.shop-li.bought { animation: shopout .42s cubic-bezier(.5,0,.8,.4) forwards; }
+@keyframes shopout { 0% { opacity: 1; transform: none; } 35% { opacity: 1; transform: scale(1.02); filter: drop-shadow(0 0 18px rgba(var(--accent-rgb), .7)); } 100% { opacity: 0; transform: translateX(60px) scale(.94); max-height: 0; filter: none; } }
+.shop-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; animation: pop .35s both; }
+.shop-row.have { border-color: rgba(var(--accent-rgb), .25); background: linear-gradient(145deg, rgba(var(--accent-rgb), .08), rgba(255,255,255,.03)); }
+.stock-ic { flex: none; width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: .85rem; box-shadow: 0 0 14px rgba(var(--accent-rgb), .5); }
+.shop-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; cursor: pointer; } .shop-main strong { font-weight: 600; line-height: 1.25; }
+.shop-main small { color: var(--muted); font-size: .76rem; } .shop-main .ph { font-style: normal; color: #cfd6e4; }
+.qty { padding: 2px 9px; border-radius: 99px; background: rgba(0,0,0,.3); border: 1px solid var(--stroke); font-size: .76rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.store-badge { flex: none; padding: 5px 11px; border-radius: 99px; font-size: .72rem; font-weight: 700; border: 1px solid var(--stroke); transition: transform .15s; } .store-badge:hover { transform: scale(1.06); }
+.store-badge.FreshCo { color: var(--accent); background: rgba(var(--accent-rgb), .1); border-color: rgba(var(--accent-rgb), .35); }
+.store-badge.Skyfarm { color: #ffb86b; background: rgba(255,184,107,.1); border-color: rgba(255,184,107,.4); }
+.shop-actions { display: flex; gap: 6px; flex: none; }
+.plan-bar { align-items: center; justify-content: space-between; } .plan-bar b { font-size: 1rem; }
+.plan-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.plan-day { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid var(--stroke); font-size: .78rem; animation: pop .35s both; } .plan-day b { font-family: var(--display); color: var(--accent); } .plan-day small { color: var(--muted); } .plan-day span { line-height: 1.35; }
+.meal-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; max-height: 38vh; overflow-y: auto; padding: 2px; }
+.meal-pick li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 14px; background: var(--glass); border: 1px solid var(--stroke); transition: .2s; } .meal-pick li.on { border-color: rgba(var(--accent-rgb), .6); background: rgba(var(--accent-rgb), .08); }
+.mp-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; padding: 4px; }
+.mp-main .check { flex: none; width: 22px; height: 22px; border-radius: 8px; border: 2px solid rgba(255,255,255,.28); display: grid; place-items: center; color: var(--accent-ink); font-weight: 800; font-size: .8rem; transition: .2s; } .meal-pick li.on .check { background: var(--accent); border-color: var(--accent); }
+.mp-name { display: flex; flex-direction: column; font-weight: 600; font-size: .86rem; line-height: 1.25; } .mp-name small { color: var(--muted); font-weight: 400; font-size: .72rem; }
+.meal-foot { position: sticky; bottom: -24px; margin: 0 -22px -24px; padding: 14px 22px 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: linear-gradient(to top, rgba(14,16,22,.98) 70%, transparent); }
+
+/* in-store mode: big tap targets */
+.instore .shop-row { padding: 18px 18px; gap: 18px; }
+.instore .shop-main strong { font-size: 1.2rem; } .instore .shop-main small { font-size: .85rem; }
+.instore .todo.big .box { width: 44px; height: 44px; border-radius: 14px; border-width: 3px; } .instore .todo.big .box::after { width: 18px; height: 10px; }
+.instore .shop-actions, .instore .staples, .instore .quick-task { display: none; }
+.instore .store-badge { padding: 8px 14px; font-size: .8rem; }
+
+/* 8 tabs on phones: a little tighter than the 7-tab rule in money.css */
+@media (max-width: 860px) {
+  .nav nav button { min-width: 40px; padding: 8px 1px; font-size: .6rem; }
+}
+@media (max-width: 720px) {
+  .shop-row { flex-wrap: wrap; row-gap: 8px; padding: 12px 12px; } .shop-main { flex-basis: calc(100% - 120px); }
+  .todo.big .box { width: 34px; height: 34px; border-radius: 11px; } .todo.big .box::after { width: 14px; height: 8px; }
+  .budget-side { align-items: flex-start; text-align: left; } .big-total { font-size: 2rem; }
+  .meal-pick { max-height: 34vh; }
+}
+
+/* print-friendly: just the "Need to get" list on white */
+@media print {
+  .nav, .bg, .toaster, .confetti, .no-print, .no-print-lite, .shop-actions, .store-badge, .todo.big { display: none !important; }
+  html, body { background: #fff !important; color: #000 !important; }
+  .main { margin: 0 !important; padding: 0 !important; max-width: none; animation: none; }
+  .shopping .card, .shopping .tilt, .shop-row { background: none !important; border: 0 !important; box-shadow: none !important; backdrop-filter: none !important; color: #000 !important; padding: 4px 0 !important; transform: none !important; }
+  .shop-row::before { content: '☐'; font-size: 1.1rem; margin-right: 8px; }
+  .shopping h1, .shopping h2, .shopping h3, .shopping h4, .shopping strong, .shopping small, .qty, .count { color: #000 !important; text-shadow: none !important; background: none !important; border-color: #999 !important; }
+  .store-h { border-bottom: 2px solid #000 !important; }
+}
