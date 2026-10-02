@@ -27,6 +27,8 @@ export interface MoneyState {
   v: 1
   paycheck: number
   nextPayday: string
+  /** monthly rent; drives the Rent / housing allocation (per bi-weekly paycheck = monthly × 12 / 26) */
+  monthlyRent: number
   alloc: Record<string, number>
   fundFrom: 'wants' | 'both'
   wishes: Wish[]
@@ -51,7 +53,7 @@ export const catOf = (id: string) => CATS.find((c) => c.id === id) ?? CATS[CATS.
 
 /** Starting guess — sums to exactly 1800. All editable. */
 export const SEED_ALLOC: Record<string, number> = {
-  rent: 400,
+  rent: 457, // $990/month × 12 / 26 ≈ $457 per bi-weekly paycheck
   groceries: 240,
   protein: 25,
   gym: 30,
@@ -61,7 +63,7 @@ export const SEED_ALLOC: Record<string, number> = {
   fun: 100,
   tests: 150,
   wants: 200,
-  other: 135,
+  other: 78,
 }
 
 const PLACEHOLDER_NOTE = 'Placeholder estimate — check the real price and edit.'
@@ -75,9 +77,13 @@ function seedWishes(): Wish[] {
 }
 
 export const DEFAULT_PAYDAY = '2026-10-09'
+export const DEFAULT_RENT_MONTHLY = 990
+/** Per-paycheck equivalent of a monthly amount (26 bi-weekly paychecks a year). */
+export const perPaycheck = (monthly: number) => Math.round(((monthly * 12) / 26) * 100) / 100
+export const monthlyOf = (perCheck: number) => Math.round(((perCheck * 26) / 12) * 100) / 100
 
 function fresh(): MoneyState {
-  return { v: 1, paycheck: 1800, nextPayday: DEFAULT_PAYDAY, alloc: { ...SEED_ALLOC }, fundFrom: 'both', wishes: seedWishes(), expenses: [] }
+  return { v: 1, paycheck: 1800, nextPayday: DEFAULT_PAYDAY, monthlyRent: DEFAULT_RENT_MONTHLY, alloc: { ...SEED_ALLOC }, fundFrom: 'both', wishes: seedWishes(), expenses: [] }
 }
 
 function load(): MoneyState {
@@ -86,11 +92,33 @@ function load(): MoneyState {
     if (raw) {
       const p = JSON.parse(raw) as Partial<MoneyState>
       const f = fresh()
+      const alloc = { ...f.alloc, ...(p.alloc || {}) }
+      let monthlyRent = p.monthlyRent
+      if (typeof monthlyRent !== 'number') {
+        // data saved before the monthly-rent field existed
+        if (alloc.rent === 400 && alloc.other === 135) {
+          // untouched old starting guess → move to the new seed ($990/month rent)
+          alloc.rent = SEED_ALLOC.rent
+          alloc.other = SEED_ALLOC.other
+          monthlyRent = DEFAULT_RENT_MONTHLY
+        } else {
+          // user edited things → keep their numbers; derive the monthly figure from their rent
+          monthlyRent = monthlyOf(alloc.rent)
+        }
+        queueMicrotask(() => {
+          try {
+            localStorage.setItem(KEY, JSON.stringify(state))
+          } catch {
+            /* ignore */
+          }
+        })
+      }
       return {
         ...f,
         ...p,
         v: 1,
-        alloc: { ...f.alloc, ...(p.alloc || {}) },
+        monthlyRent,
+        alloc,
         wishes: Array.isArray(p.wishes) ? p.wishes : f.wishes,
         expenses: Array.isArray(p.expenses) ? p.expenses : [],
       }
@@ -134,8 +162,16 @@ if (typeof window !== 'undefined') {
 /* ------------------------------------------------ actions */
 export const setPaycheck = (n: number) => commit({ ...state, paycheck: clamp(Math.round(n * 100) / 100, 0, 1e6) })
 export const setNextPayday = (d: string) => d && commit({ ...state, nextPayday: d })
-export const setAlloc = (cat: string, n: number) => commit({ ...state, alloc: { ...state.alloc, [cat]: clamp(Math.round(n * 100) / 100, 0, 1e6) } })
-export const resetAlloc = () => commit({ ...state, alloc: { ...SEED_ALLOC }, paycheck: 1800 })
+export const setAlloc = (cat: string, n: number) => {
+  const v = clamp(Math.round(n * 100) / 100, 0, 1e6)
+  commit({ ...state, alloc: { ...state.alloc, [cat]: v }, ...(cat === 'rent' ? { monthlyRent: monthlyOf(v) } : {}) })
+}
+/** Monthly rent drives the Rent / housing allocation per bi-weekly paycheck. */
+export const setMonthlyRent = (m: number) => {
+  const mm = clamp(Math.round(m * 100) / 100, 0, 1e6)
+  commit({ ...state, monthlyRent: mm, alloc: { ...state.alloc, rent: Math.round(perPaycheck(mm)) } })
+}
+export const resetAlloc = () => commit({ ...state, alloc: { ...SEED_ALLOC }, monthlyRent: DEFAULT_RENT_MONTHLY, paycheck: 1800 })
 export const setFundFrom = (f: 'wants' | 'both') => commit({ ...state, fundFrom: f })
 export function dumpRemainderTo(cat: string) {
   const rem = state.paycheck - totalAlloc(state)
