@@ -7,7 +7,7 @@ import { useApp } from '../lib/store'
 import { recipeFor } from '../lib/actions'
 import {
   AISLES, CATALOG, STORES, addFromCatalog, addLines, buildLines, clearStock, copyText, cycleStore, deleteItem, fmtQty, groupItems, listText, money,
-  moveItem, packPrice, planWeek, quickAdd, readBudget, resetStarter, restoreItems, saveItem, setFilter, setGroupBy, setStoreMode, sumPrices, useShop,
+  moveItem, priceInfo, priceTag, REGION_NOTE, SKYFARM_NOTE, planWeek, quickAdd, readBudget, resetStarter, restoreItems, saveItem, setFilter, setGroupBy, setStoreMode, sumPrices, useShop,
   type Aisle, type Item, type Store,
 } from '../lib/shopping'
 
@@ -53,7 +53,7 @@ function ItemForm({ initial, onClose }: { initial?: Item; onClose: () => void })
           </div>
         </div>
         <label className="field"><span>Price for this line (CAD, optional)</span><input type="number" min={0} step="0.01" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="leave blank for the placeholder estimate" /></label>
-        <p className="hint">Prices shown without your edit are <b>placeholder prices</b>, not real shop prices — type the real one to replace it.</p>
+        <p className="hint">Prices you don’t type are <b>estimates</b> (real-ish store prices, not exact) or <b>placeholder prices</b> (no real price yet). Type the price you actually paid to replace it.</p>
         <label className="field"><span>Note (optional)</span><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="brand, size, deal…" /></label>
         <div className="row gap end">
           <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
@@ -160,6 +160,9 @@ export default function Shopping() {
   const budget = readBudget()
   const total = sumPrices(need)
   const unpriced = need.filter((i) => i.price === undefined).length
+  const nEst = need.filter((i) => i.priceSrc === 'estimate').length
+  const nPh = need.filter((i) => i.priceSrc === 'placeholder').length
+  const nTyped = need.filter((i) => i.priceSrc === 'edited').length
   const pct = budget ? Math.min(100, (total / budget.perPaycheck) * 100) : 0
   const over = !!budget && total > budget.perPaycheck
   const needGroups = groupItems(need, s.groupBy, s.filter)
@@ -188,6 +191,7 @@ export default function Shopping() {
   const row = (it: Item) => {
     const isHave = it.stock === 'have'
     const qty = fmtQty(it.qty, it.unit)
+    const info = priceInfo(it)
     return (
       <li key={it.id} className={`shop-li ${fading.has(it.id) ? 'bought' : ''}`}>
         <Tilt className={`shop-row ${isHave ? 'have' : ''}`} max={2} glare={false}>
@@ -206,9 +210,12 @@ export default function Shopping() {
             </div>
             <small>
               {it.price !== undefined ? (
-                it.priceSrc === 'placeholder' ? <><i className="ph">~{money(it.price)}</i> · placeholder price</> : <>{money(it.price)}</>
+                it.priceSrc === 'placeholder' ? <><i className="ph">~{money(it.price)}</i> · placeholder price</>
+                : it.priceSrc === 'estimate' ? <><i className="ph">~{money(it.price)}</i> · estimate{info?.kg ? ' (per kg)' : ''}{info?.packLabel && !info.kg ? ` · pack: ${info.packLabel}` : ''}{info?.sale ? ' · sale' : ''}{info?.note ? ` · ${info.note}` : ''}</>
+                : <>{money(it.price)}</>
               ) : <span className="muted">no price</span>}
               {it.note ? ` · ${it.note}` : ''}
+              {it.store === 'Skyfarm' && <span className="phone-note"> · ☎ {SKYFARM_NOTE}</span>}
             </small>
           </div>
           <button className={`store-badge ${it.store}`} onClick={() => { cycleStore(it.id); buzz(8) }} title="Tap to switch store" aria-label={`Store ${it.store}, tap to switch`}>{it.store}</button>
@@ -229,7 +236,7 @@ export default function Shopping() {
         {g.store && (
           <h3 className={`store-h ${g.store}`}>
             <span>{g.store}</span>
-            <small>{g.store === 'Skyfarm' ? 'meat' : 'general groceries'} · {g.items.length} item{g.items.length === 1 ? '' : 's'}{g.items.some((i) => i.price !== undefined) ? ` · ~${money(sumPrices(g.items))}` : ''}</small>
+            <small>{g.store === 'Skyfarm' ? `meat · ${SKYFARM_NOTE}` : 'general groceries'} · {g.items.length} item{g.items.length === 1 ? '' : 's'}{g.items.some((i) => i.price !== undefined) ? ` · ~${money(sumPrices(g.items))}` : ''}</small>
           </h3>
         )}
         {g.aisles.map((a) => (
@@ -256,7 +263,8 @@ export default function Shopping() {
           <div>
             <small className="lbl">Estimated cost of Need to get</small>
             <div className={`big-total ${over ? 'neg' : ''}`}>{money(total)}</div>
-            <small className="muted">placeholder estimates{unpriced ? ` · ${unpriced} item${unpriced === 1 ? '' : 's'} without a price` : ''}</small>
+            <small className="muted">{[nEst ? `${nEst} estimate${nEst === 1 ? '' : 's'}` : '', nPh ? `${nPh} placeholder price${nPh === 1 ? '' : 's'}` : '', nTyped ? `${nTyped} typed by you` : '', unpriced ? `${unpriced} without a price` : ''].filter(Boolean).join(' · ') || 'no prices yet'} · not exact</small>
+            <small className="price-note">{REGION_NOTE}</small>
           </div>
           {budget ? (
             <div className="budget-side">
@@ -303,10 +311,9 @@ export default function Shopping() {
       </form>
 
       <section className="staples no-print" aria-label="Staples">
-        <div className="row between wrap"><h2>Staples</h2><small className="muted">tap to add · prices are placeholder estimates, edit after adding</small></div>
+        <div className="row between wrap"><h2>Staples</h2><small className="muted">tap to add · “estimate” = store price, not exact · “placeholder” = no real price yet</small></div>
         <div className="chips-row">
           {CATALOG.filter((c) => c.chip).map((c) => {
-            const p = packPrice(c.id, c.store)
             const onList = need.some((i) => i.cat === c.id)
             return (
               <button key={c.id} className={`staple ${onList ? 'on' : ''}`} onClick={() => {
@@ -314,7 +321,7 @@ export default function Shopping() {
                 toast(r === 'exists' ? `${c.name} is already on the list` : r === 'restocked' ? `${c.name} added (you had it in stock)` : `Added ${c.name}`)
               }}>
                 <span>{c.name}</span>
-                <small>{onList ? 'on list ✓' : p !== undefined ? `~${money(p)} est.` : 'no price'}</small>
+                <small>{onList ? 'on list ✓' : priceTag(c.id, c.store)}</small>
               </button>
             )
           })}
@@ -353,7 +360,7 @@ export default function Shopping() {
 
       <div className="row gap wrap no-print">
         <button className="linkish" onClick={() => { const prev = s.items; resetStarter(); toast('Starter list restored', { undo: () => restoreItems(prev) }) }}>Reset Need to get to the starter list</button>
-        <small className="muted">Starter items & prices are editable placeholders. No tuna, fresh fish or swallow ingredients.</small>
+        <small className="muted">Starter items are editable. Prices are estimates or placeholders until you type real ones. No tuna, fresh fish or swallow ingredients.</small>
       </div>
 
       {form && <ItemForm initial={form === 'new' ? undefined : form} onClose={() => setForm(null)} />}
