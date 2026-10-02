@@ -5,7 +5,7 @@ import { toast } from '../lib/fx'
 import { useCountUp } from '../lib/hooks'
 import {
   CATS, DEFAULT_PAYDAY, addExpense, catOf, deleteExpense, deleteWish, dumpRemainderTo, fmtMoney, moveWish, periodFor, planWishes,
-  resetAlloc, restoreExpenses, restoreWishes, saveWish, setAlloc, setFundFrom, setNextPayday, setPaycheck, sortWishesByPriority,
+  resetAlloc, restoreExpenses, restoreWishes, saveWish, setAlloc, setFundFrom, setMonthlyRent, setNextPayday, setPaycheck, sortWishesByPriority,
   spentByCat, toggleBought, totalAlloc, useMoney, type Expense, type Priority, type Wish,
 } from '../lib/money'
 import { addDays, clamp, fmtDate, num, todayStr } from '../lib/util'
@@ -210,7 +210,7 @@ export default function Money() {
       {/* ---- Budget ---- */}
       <Tilt className="budget-card" max={1.5}>
         <div className="card-head">
-          <div><h2>Budget for this pay period</h2><p className="hint" style={{ marginTop: 4 }}><b>Starting guess</b> — every number is editable. Groceries ≈ $240 (estimate range $200–260), gym membership and other amounts are placeholders.</p></div>
+          <div><h2>Budget for this pay period</h2><p className="hint" style={{ marginTop: 4 }}><b>Starting guess</b> — every number is editable. Rent starts at $990/month ≈ $457 per paycheck; groceries ≈ $240 (estimate range $200–260); gym membership and other amounts are placeholders.</p></div>
         </div>
         <ul className="alloc-list">
           {CATS.map((c) => {
@@ -225,6 +225,12 @@ export default function Money() {
                   style={{ '--pct': `${clamp((v / Math.max(s.paycheck, v, 1)) * 100, 0, 100)}%`, '--c': c.color } as React.CSSProperties}
                 />
                 <span className="money-in"><i>$</i><NumInput value={v} onChange={(n) => setAlloc(c.id, n)} label={`${c.label} amount`} /></span>
+                {c.id === 'rent' && (
+                  <div className="rent-note">
+                    <label className="rent-in"><span>Monthly rent</span><span className="money-in"><i>$</i><NumInput value={s.monthlyRent} onChange={setMonthlyRent} label="Monthly rent" step={10} /></span></label>
+                    <small>{fmtMoney(s.monthlyRent)}/month = about {fmtMoney(Math.round((s.monthlyRent * 12) / 26))} per bi-weekly paycheck (× 12 ÷ 26). Editing either box updates the other.</small>
+                  </div>
+                )}
               </li>
             )
           })}
