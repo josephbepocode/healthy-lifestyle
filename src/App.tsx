@@ -5,6 +5,7 @@ import Workouts from './screens/Workouts'
 import Progress from './screens/Progress'
 import Tasks from './screens/Tasks'
 import Time from './screens/Time'
+import Money from './screens/Money'
 import { Confetti, Toaster } from './components/ui'
 import { ModalHost } from './components/Recipe'
 import { openIdeas } from './lib/fx'
@@ -17,6 +18,7 @@ const TABS = [
   { id: 'progress', label: 'Progress', icon: '📈', key: '4' },
   { id: 'tasks', label: 'Tasks', icon: '✓', key: '5' },
   { id: 'time', label: 'Time', icon: '⏱', key: '6' },
+  { id: 'money', label: 'Money', icon: '$', key: '7' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
 
@@ -73,7 +75,7 @@ export default function App() {
         </nav>
         <div className="nav-foot">
           {s.activeTimer && <button className="live" onClick={() => go('time')}><i className="pulse-dot" /> Timer running</button>}
-          <small>Keys 1–6 · E for ideas</small>
+          <small>Keys 1–7 · E for ideas</small>
         </div>
       </aside>
       <main key={tab} className="main">
@@ -83,6 +85,7 @@ export default function App() {
         {tab === 'progress' && <Progress />}
         {tab === 'tasks' && <Tasks />}
         {tab === 'time' && <Time />}
+        {tab === 'money' && <Money />}
       </main>
       <ModalHost />
       <Toaster />
