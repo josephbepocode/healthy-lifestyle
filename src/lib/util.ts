@@ -53,7 +53,7 @@ export function clock(sec: number) {
 
 export function buzz(ms = 12) {
   try {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(ms)
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate(ms)
   } catch {
     /* ignore */
   }

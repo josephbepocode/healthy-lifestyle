@@ -5,6 +5,7 @@ import { SCHEDULE, SCHEDULE_NOTE, WEEKDAY_NAMES, WORKOUT_SPLIT } from '../lib/se
 import { Empty, Tilt, DateNav } from '../components/ui'
 import { Sparkline } from '../components/charts'
 import { fmtDate, num, todayStr, weekdayIdx } from '../lib/util'
+import { progression, rangeOf, setRange, startRest, wx, setRest, isCompound } from '../lib/workoutx'
 import type { DayKey, Exercise, SetEntry } from '../types'
 
 function ExerciseCard({ ex, scheme, date, day }: { ex: Exercise; scheme: string; date: string; day: DayKey }) {
@@ -25,14 +26,19 @@ function ExerciseCard({ ex, scheme, date, day }: { ex: Exercise; scheme: string;
   const prSet = sessions.flatMap((x) => x.sets).filter((y) => y.kg === pr).sort((a, b) => b.reps - a.reps)[0]
   const trend = sessions.map((x) => Math.max(...x.sets.map((y) => y.kg)))
   const lastTop = last ? last.sets[last.sets.length - 1] : undefined
+  wx.use()
+  const [lo, hi] = rangeOf(ex.id)
+  const prog = progression(last?.sets ?? [], ex.id)
+  const progToday = progression(todaySets, ex.id)
   const [reps, setReps] = useState(lastTop ? String(lastTop.reps) : '')
-  const [kg, setKg] = useState(lastTop ? String(lastTop.kg) : '')
+  const [kg, setKg] = useState(lastTop ? String(prog.add ? prog.nextKg : lastTop.kg) : '')
   const log = () => {
     const r = Math.round(num(reps))
     const k = num(kg)
     if (r <= 0 || k < 0) return
     const set: SetEntry = { exerciseId: ex.id, reps: r, kg: k }
     addSet(date, day, set)
+    startRest(ex.id)
   }
   return (
     <Tilt className="ex-card" max={3}>
@@ -41,8 +47,19 @@ function ExerciseCard({ ex, scheme, date, day }: { ex: Exercise; scheme: string;
           <h3>{ex.name}</h3>
           <small className="muted">{ex.muscleGroup} · target {scheme}</small>
         </div>
-        {pr > 0 && <span className="badge pr">🏆 PR {pr} kg{prSet ? ` × ${prSet.reps}` : ''}</span>}
+        <div className="row gap-s wrap end">
+          {prog.add && <span className="badge add" title={`Every set of your last session hit ${hi} reps`}>＋ Add 2.5 kg → {prog.nextKg} kg</span>}
+          {pr > 0 && <span className="badge pr">🏆 PR {pr} kg{prSet ? ` × ${prSet.reps}` : ''}</span>}
+        </div>
       </div>
+      <div className="range-row">
+        <span>Rep range</span>
+        <input type="number" min="1" max="50" value={lo} aria-label="Rep range low" onChange={(e) => setRange(ex.id, [Math.max(1, Math.min(num(e.target.value, lo), hi)), hi])} />
+        <span>–</span>
+        <input type="number" min="1" max="50" value={hi} aria-label="Rep range high" onChange={(e) => setRange(ex.id, [lo, Math.max(lo, num(e.target.value, hi))])} />
+        <small className="muted">{isCompound(ex.id) ? 'compound' : 'accessory'} · hit {hi} on every set → add 2.5 kg{last && !prog.add && prog.total ? ` (last time ${prog.hit}/${prog.total} sets at the top)` : ''}</small>
+      </div>
+      {progToday.add && <div className="gap-card ok-card">🎯 All {progToday.total} sets hit {hi} reps — next time try <b>{progToday.nextKg} kg</b>.</div>}
       <div className="ex-body">
         <div className="ex-last">
           <small className="muted">Last session{last ? ` · ${fmtDate(last.date, { month: 'short', day: 'numeric' })}` : ''}</small>
@@ -109,6 +126,7 @@ export default function Workouts() {
         })}
       </div>
       <p className="muted small">{SCHEDULE_NOTE}</p>
+      <RestSettings />
 
       <div className="seg day-seg" role="tablist">
         {WORKOUT_SPLIT.map((d) => (
@@ -152,4 +170,16 @@ function nextDay(date: string): DayKey {
     if (k) return k
   }
   return 'A'
+}
+
+function RestSettings() {
+  const c = wx.use()
+  const step = (k: 'rest' | 'restCompound', d: number) => setRest({ [k]: Math.max(30, Math.min(300, c[k] + d)) })
+  return (
+    <div className="rest-set">
+      <label className="todo"><input type="checkbox" checked={c.restOn} onChange={(e) => setRest({ restOn: e.target.checked })} /><span className="box" aria-hidden /><span className="todo-text">Rest timer between sets<small>starts when you log a set</small></span></label>
+      <div className="rs"><span>Default</span><button onClick={() => step('rest', -15)} aria-label="Less rest">−</button><b>{c.rest}s</b><button onClick={() => step('rest', 15)} aria-label="More rest">＋</button></div>
+      <div className="rs"><span>Compound</span><button onClick={() => step('restCompound', -15)} aria-label="Less compound rest">−</button><b>{c.restCompound}s</b><button onClick={() => step('restCompound', 15)} aria-label="More compound rest">＋</button></div>
+    </div>
+  )
 }
