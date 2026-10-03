@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { useApp } from '../lib/store'
 import { addWeighIn, deleteWeighIn, updateProfile } from '../lib/actions'
-import { Empty, Tilt } from '../components/ui'
+import { Empty, Modal, Tilt } from '../components/ui'
 import { LineChart } from '../components/charts'
-import { addDays, clamp, diffDays, fmtDate, num, round, todayStr } from '../lib/util'
+import { SITES, body, deleteBody, saveBody, weighCheck, type Site } from '../lib/habits'
+import { toast } from '../lib/fx'
+import { clamp, fmtDate, num, round, todayStr } from '../lib/util'
 
 export default function Progress() {
   const s = useApp()
-  const { goalKg, heightCm } = s.profile
+  const bd = body.use()
+  const { goalKg, heightCm, kcalTarget } = s.profile
   const w = [...s.weighIns].sort((a, b) => a.date.localeCompare(b.date))
   const latest = w[w.length - 1]
   const first = w[0]
@@ -15,6 +18,10 @@ export default function Progress() {
   const [kg, setKg] = useState('')
   const [goalEdit, setGoalEdit] = useState(false)
   const [goalVal, setGoalVal] = useState(String(goalKg))
+  const [apply, setApply] = useState<number | null>(null)
+  const [site, setSite] = useState<Site>('waist')
+  const [bm, setBm] = useState<Record<string, string>>({})
+  const [bdate, setBdate] = useState(todayStr())
 
   const cur = latest?.kg ?? s.profile.weightKg
   const toGo = Math.max(0, goalKg - cur)
@@ -23,25 +30,8 @@ export default function Progress() {
   const bmi = cur / Math.pow(heightCm / 100, 2)
   const weeksFast = Math.ceil(toGo / 0.5)
   const weeksSlow = Math.ceil(toGo / 0.25)
+  const wc = weighCheck(w)
 
-  // plateau check: compare latest to the closest weigh-in at least 14 days older
-  let advice: { tone: 'warn' | 'ok' | 'info'; title: string; body: string } | null = null
-  if (latest) {
-    const old = [...w].reverse().find((x) => diffDays(latest.date, x.date) >= 14)
-    if (!old) {
-      const nextCheck = addDays(first.date, 14)
-      advice = { tone: 'info', title: 'Give it two weeks', body: `Weigh in once a week, same time of day. Your first trend check is ${fmtDate(nextCheck)} — if the scale hasn’t moved by then, raise calories by 150–200 kcal.` }
-    } else {
-      const delta = latest.kg - old.kg
-      const days = diffDays(latest.date, old.date)
-      if (delta < 0.25 && days >= 14) {
-        advice = { tone: 'warn', title: 'Scale hasn’t moved — bump calories', body: `Only ${delta >= 0 ? '+' : ''}${round(delta, 1)} kg over ${days} days. Raise daily calories by 150–200 kcal (to about ${s.profile.kcalTarget + 150}–${s.profile.kcalTarget + 200}) and reassess in 2 weeks.` }
-      } else {
-        const perWeek = delta / (days / 7)
-        advice = { tone: 'ok', title: 'On track', body: `+${round(delta, 1)} kg over ${days} days (${round(perWeek, 2)} kg/week). Goal pace is 0.25–0.5 kg/week — keep going.` }
-      }
-    }
-  }
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const v = num(kg)
@@ -49,6 +39,21 @@ export default function Progress() {
     addWeighIn(date, round(v, 1))
     setKg('')
   }
+  const saveM = (e: React.FormEvent) => {
+    e.preventDefault()
+    const e2: Record<string, number> = {}
+    SITES.forEach((x) => {
+      const v = num(bm[x.id] ?? '', NaN)
+      if (Number.isFinite(v) && v > 10 && v < 250) e2[x.id] = round(v, 1)
+    })
+    if (!Object.keys(e2).length) return toast('Enter at least one measurement (cm).')
+    saveBody({ date: bdate, ...e2 })
+    setBm({})
+    toast('Measurements saved', { tone: 'win' })
+  }
+  const pts = bd.entries.filter((x) => x[site] !== undefined).map((x) => ({ x: x.date, y: x[site] as number }))
+  const lastM = pts[pts.length - 1]
+  const firstM = pts[0]
 
   return (
     <div className="screen">
@@ -77,12 +82,34 @@ export default function Progress() {
         </Tilt>
       </div>
 
-      {advice && (
-        <div className={`advice ${advice.tone}`}>
-          <strong>{advice.title}</strong>
-          <p>{advice.body}</p>
-        </div>
-      )}
+      <div className={`advice wcheck ${wc.state === 'slow' ? 'warn' : wc.state === 'ok' ? 'ok' : wc.state === 'fast' ? 'warn' : 'info'}`}>
+        <div className="card-head"><strong>Weekly weigh-in check</strong><span className="muted">target +0.25–0.5 kg / week</span></div>
+        {wc.state === 'need' ? (
+          <p>{wc.need} <b>Needs at least 2 weigh-ins 7+ days apart</b> — then this card tells you whether to change calories.</p>
+        ) : (
+          <>
+            <p className="wc-main">
+              {wc.state === 'slow' && <>🐢 <b>Gaining too slowly</b> — </>}
+              {wc.state === 'ok' && <>✅ <b>On track</b> — </>}
+              {wc.state === 'fast' && <>🚀 <b>Gaining a bit fast</b> — </>}
+              {wc.rate! > 0 ? '+' : ''}{wc.rate} kg/week ({wc.from!.kg} → {wc.to!.kg} kg over {wc.days} days, {fmtDate(wc.from!.date, { month: 'short', day: 'numeric' })} → {fmtDate(wc.to!.date, { month: 'short', day: 'numeric' })}).
+            </p>
+            {wc.state === 'slow' && (
+              <>
+                <p>Raise calories by <b>+150–200 kcal</b> a day (a peanut-butter oats bowl or a shake) and re-check in 2 weeks.</p>
+                <button className="btn primary" onClick={() => setApply(175)}>Apply +175 kcal → {kcalTarget + 175}</button>
+              </>
+            )}
+            {wc.state === 'ok' && <p>Keep calories at {kcalTarget} kcal. Same time of day, once a week, and judge the 2-week trend, not single days.</p>}
+            {wc.state === 'fast' && (
+              <>
+                <p>Faster than 0.5 kg/week usually means more fat than muscle. Trim <b>about 100–150 kcal</b> a day and re-check in 2 weeks.</p>
+                <button className="btn" onClick={() => setApply(-125)}>Apply −125 kcal → {kcalTarget - 125}</button>
+              </>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="two-col">
         <Tilt className="chart-card" max={2}>
@@ -119,6 +146,43 @@ export default function Progress() {
           </ul>
         </Tilt>
       </div>
+
+      <div className="two-col">
+        <Tilt className="chart-card" max={2}>
+          <div className="card-head"><h2>📏 Body measurements</h2>
+            <div className="seg small" role="group" aria-label="Measurement site">{SITES.map((x) => <button key={x.id} className={site === x.id ? 'on' : ''} onClick={() => setSite(x.id)}>{x.label}</button>)}</div>
+          </div>
+          {pts.length === 0 ? <Empty icon="📏" title={`No ${site} measurements yet`} hint="Measure once every 2–4 weeks, same spot, same time of day." /> : (
+            <>
+              <LineChart points={pts} unit="cm" height={190} pad={2} />
+              {lastM && firstM && pts.length > 1 && <p className="hint">{SITES.find((x) => x.id === site)!.label}: {firstM.y} → {lastM.y} cm ({lastM.y - firstM.y > 0 ? '+' : ''}{round(lastM.y - firstM.y, 1)} cm since {fmtDate(firstM.x, { month: 'short', day: 'numeric' })}).</p>}
+            </>
+          )}
+        </Tilt>
+        <Tilt className="log-card" max={2}>
+          <div className="card-head"><h2>Log measurements (cm)</h2><span className="muted">all optional</span></div>
+          <form className="stack gap-s" onSubmit={saveM}>
+            <label className="field"><span>Date</span><input type="date" value={bdate} onChange={(e) => setBdate(e.target.value)} /></label>
+            <div className="grid2">{SITES.map((x) => <label className="field" key={x.id}><span>{x.label}</span><input type="number" step="0.1" inputMode="decimal" value={bm[x.id] ?? ''} onChange={(e) => setBm({ ...bm, [x.id]: e.target.value })} placeholder="cm" /></label>)}</div>
+            <button className="btn primary">Save measurements</button>
+          </form>
+          <ul className="weigh-list">
+            {[...bd.entries].reverse().slice(0, 5).map((x) => (
+              <li key={x.date}><span>{fmtDate(x.date, { month: 'short', day: 'numeric' })}</span><b>{SITES.filter((t) => x[t.id] !== undefined).map((t) => `${t.label[0]}${x[t.id]}`).join(' · ')}</b><em /><button className="icon-btn danger sm" aria-label="Delete measurement" onClick={() => deleteBody(x.date)}>✕</button></li>
+            ))}
+          </ul>
+          <p className="hint">Progress photos are not included — this version stores no images.</p>
+        </Tilt>
+      </div>
+
+      {apply !== null && (
+        <Modal title="Change calorie target?" onClose={() => setApply(null)}>
+          <div className="stack gap">
+            <p>Daily target changes from <b>{kcalTarget}</b> to <b>{kcalTarget + apply} kcal</b> ({apply > 0 ? '+' : ''}{apply}). Meals, Today and the weekly review will use the new number. You can change it back any time.</p>
+            <div className="row gap end"><button className="btn ghost" onClick={() => setApply(null)}>Cancel</button><button className="btn primary" onClick={() => { updateProfile({ kcalTarget: kcalTarget + apply }); setApply(null); toast(`Calorie target is now ${kcalTarget + apply} kcal`, { tone: 'win' }) }}>Confirm</button></div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
