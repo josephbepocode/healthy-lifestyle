@@ -3,6 +3,8 @@ import '../shopping.css'
 import { Empty, Modal, Stepper, Tilt } from '../components/ui'
 import { toast } from '../lib/fx'
 import { buzz, num } from '../lib/util'
+import ShoppingExtras, { PriceSources } from './ShoppingExtras'
+import { costPer10g } from '../lib/nutri'
 import { useApp } from '../lib/store'
 import { recipeFor } from '../lib/actions'
 import {
@@ -52,8 +54,8 @@ function ItemForm({ initial, onClose }: { initial?: Item; onClose: () => void })
             <div className="seg small">{STORES.map((s) => <button type="button" key={s} className={store === s ? 'on' : ''} onClick={() => setStore(s)}>{s}</button>)}</div>
           </div>
         </div>
-        <label className="field"><span>Price for this line (CAD, optional)</span><input type="number" min={0} step="0.01" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="leave blank for the placeholder estimate" /></label>
-        <p className="hint">Prices you don’t type are <b>estimates</b> (real-ish store prices, not exact) or <b>placeholder prices</b> (no real price yet). Type the price you actually paid to replace it.</p>
+        <label className="field"><span>Price for this line (CAD, optional)</span><input type="number" min={0} step="0.01" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="leave blank to use the store price" /></label>
+        <p className="hint">Prices you don’t type are <b>store prices</b> (real Oshawa shelf prices, checked Oct 3 2026) or <b>placeholder prices</b> (no real price yet). Type the price you actually paid to replace it.</p>
         <label className="field"><span>Note (optional)</span><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="brand, size, deal…" /></label>
         <div className="row gap end">
           <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
@@ -192,6 +194,7 @@ export default function Shopping() {
     const isHave = it.stock === 'have'
     const qty = fmtQty(it.qty, it.unit)
     const info = priceInfo(it)
+    const pc = costPer10g(it.cat, it.store)
     return (
       <li key={it.id} className={`shop-li ${fading.has(it.id) ? 'bought' : ''}`}>
         <Tilt className={`shop-row ${isHave ? 'have' : ''}`} max={2} glare={false}>
@@ -211,9 +214,10 @@ export default function Shopping() {
             <small>
               {it.price !== undefined ? (
                 it.priceSrc === 'placeholder' ? <><i className="ph">~{money(it.price)}</i> · placeholder price</>
-                : it.priceSrc === 'estimate' ? <><i className="ph">~{money(it.price)}</i> · estimate{info?.kg ? ' (per kg)' : ''}{info?.packLabel && !info.kg ? ` · pack: ${info.packLabel}` : ''}{info?.sale ? ' · sale' : ''}{info?.note ? ` · ${info.note}` : ''}</>
+                : it.priceSrc === 'estimate' ? <><i className="ph">{money(it.price)}</i> · store price{info?.kg ? ' (per kg)' : ''}{info?.packLabel && !info.kg ? ` · pack: ${info.packLabel}` : ''}{info?.sale ? ' · sale' : ''}{info?.note ? ` · ${info.note}` : ''}{info?.oos ? ' · OUT OF STOCK' : ''}</>
                 : <>{money(it.price)}</>
               ) : <span className="muted">no price</span>}
+              {pc && it.price !== undefined ? ` · ~${money(pc.per10g)}/10 g protein (${pc.src === 'estimate' ? 'store price' : 'placeholder'}${pc.bulk ? ', bulk bag' : ''}${pc.approx ? ', weight approximate' : ''})` : ''}
               {it.note ? ` · ${it.note}` : ''}
               {it.store === 'Skyfarm' && <span className="phone-note"> · ☎ {SKYFARM_NOTE}</span>}
             </small>
@@ -261,10 +265,11 @@ export default function Shopping() {
       <Tilt className="budget-shop no-print" max={2}>
         <div className="row between wrap gap">
           <div>
-            <small className="lbl">Estimated cost of Need to get</small>
+            <small className="lbl">Cost of Need to get (store prices)</small>
             <div className={`big-total ${over ? 'neg' : ''}`}>{money(total)}</div>
-            <small className="muted">{[nEst ? `${nEst} estimate${nEst === 1 ? '' : 's'}` : '', nPh ? `${nPh} placeholder price${nPh === 1 ? '' : 's'}` : '', nTyped ? `${nTyped} typed by you` : '', unpriced ? `${unpriced} without a price` : ''].filter(Boolean).join(' · ') || 'no prices yet'} · not exact</small>
+            <small className="muted">{[nEst ? `${nEst} store price${nEst === 1 ? '' : 's'}` : '', nPh ? `${nPh} placeholder price${nPh === 1 ? '' : 's'}` : '', nTyped ? `${nTyped} typed by you` : '', unpriced ? `${unpriced} without a price` : ''].filter(Boolean).join(' · ') || 'no prices yet'} · not exact</small>
             <small className="price-note">{REGION_NOTE}</small>
+            <PriceSources />
           </div>
           {budget ? (
             <div className="budget-side">
@@ -280,6 +285,7 @@ export default function Shopping() {
             </div>
           )}
         </div>
+        {over && budget && <div className="over-banner" role="alert">⚠ Over your grocery budget by {money(total - budget.perPaycheck)} — trim the list or move items to the next trip.</div>}
         {budget && (
           <>
             <div className="track"><div className={`fill ${over ? 'bad' : ''}`} style={{ width: `${pct}%` }} /></div>
@@ -287,6 +293,8 @@ export default function Shopping() {
           </>
         )}
       </Tilt>
+
+      <ShoppingExtras />
 
       <div className="row between wrap gap no-print">
         <div className="row gap-s wrap">
@@ -311,7 +319,7 @@ export default function Shopping() {
       </form>
 
       <section className="staples no-print" aria-label="Staples">
-        <div className="row between wrap"><h2>Staples</h2><small className="muted">tap to add · “estimate” = store price, not exact · “placeholder” = no real price yet</small></div>
+        <div className="row between wrap"><h2>Staples</h2><small className="muted">tap to add · “store price” = real Oshawa shelf price (Oct 3) · “placeholder” = no real price yet</small></div>
         <div className="chips-row">
           {CATALOG.filter((c) => c.chip).map((c) => {
             const onList = need.some((i) => i.cat === c.id)
@@ -360,7 +368,7 @@ export default function Shopping() {
 
       <div className="row gap wrap no-print">
         <button className="linkish" onClick={() => { const prev = s.items; resetStarter(); toast('Starter list restored', { undo: () => restoreItems(prev) }) }}>Reset Need to get to the starter list</button>
-        <small className="muted">Starter items are editable. Prices are estimates or placeholders until you type real ones. No tuna, fresh fish or swallow ingredients.</small>
+        <small className="muted">Starter items are editable. Prices are Oshawa store prices (checked Oct 3 2026) or placeholders until you type real ones. No tuna, fresh fish or swallow ingredients.</small>
       </div>
 
       {form && <ItemForm initial={form === 'new' ? undefined : form} onClose={() => setForm(null)} />}
