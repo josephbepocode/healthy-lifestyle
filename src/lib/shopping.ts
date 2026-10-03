@@ -11,7 +11,7 @@ export const AISLES = ['Produce', 'Meat & eggs', 'Dairy', 'Grains & staples', 'C
 export type Aisle = (typeof AISLES)[number]
 export const STORES = ['FreshCo', 'Skyfarm'] as const
 export type Store = (typeof STORES)[number]
-/** estimate = price from src/data/shopping-prices.json (real-ish store price, not exact); placeholder = made-up number; edited = typed by the user (wins over everything) */
+/** 'estimate' (kept as the stored value so saved lists keep working; shown as "store price") = real price from src/data/shopping-prices.json; placeholder = made-up number; edited = typed by the user (wins over everything) */
 export type PriceSrc = 'estimate' | 'placeholder' | 'edited' | 'none'
 export type Stock = 'need' | 'have'
 
@@ -62,10 +62,13 @@ const C = (id: string, name: string, aisle: Aisle, store: Store, unit: string, f
 export const CATALOG: Cat[] = [
   C('olive-oil', 'Olive oil', 'Canned/pantry', 'FreshCo', 'bottle', 'cnt', {}, /olive/, true),
   C('oil', 'Cooking oil', 'Canned/pantry', 'FreshCo', 'bottle', 'vol', { ml: 1000, L: 1 }, /\boil\b|palm/),
+  C('curry', 'Curry powder', 'Canned/pantry', 'FreshCo', 'pack', 'pack', {}, /curry powder/, true, true),
+  C('bouillon', 'Knorr chicken bouillon cubes', 'Canned/pantry', 'FreshCo', 'pack', 'pack', {}, /knorr|bouillon cubes/, true, true),
   C('spices', 'Basic spices & stock cubes', 'Canned/pantry', 'FreshCo', 'pack', 'pack', {}, /\b(salt|spices?|curry|thyme|paprika|bouillon|seasoning|stock|crayfish|locust|iru)\b/, true),
-  C('chicken-breast', 'Chicken breast (Skyfarm bag)', 'Meat & eggs', 'Skyfarm', 'bag', 'cnt', {}, /chicken breast/, true, true),
-  C('chicken', 'Chicken thighs', 'Meat & eggs', 'Skyfarm', 'kg', 'wt', { g: 1000, '': 6 }, /chicken|drumstick/, true),
-  C('beef', 'Ground beef', 'Meat & eggs', 'Skyfarm', 'kg', 'wt', { g: 1000 }, /beef|mince/, true),
+  C('chicken-breast', 'Chicken breast (Skyfarm 5 kg bag)', 'Meat & eggs', 'Skyfarm', 'bag', 'cnt', {}, /chicken breast/, true, true),
+  C('chicken-legs', 'Chicken leg meat (Skyfarm 5 kg bag)', 'Meat & eggs', 'Skyfarm', 'bag', 'cnt', {}, /chicken leg meat bulk/, true, true),
+  C('chicken', 'Chicken thighs', 'Meat & eggs', 'FreshCo', 'kg', 'wt', { g: 1000, '': 6 }, /chicken|drumstick/, true),
+  C('beef', 'Ground beef', 'Meat & eggs', 'FreshCo', 'kg', 'wt', { g: 1000 }, /beef|mince/, true),
   C('eggs', 'Eggs', 'Meat & eggs', 'FreshCo', 'dozen', 'cnt', { '': 12 }, /\beggs?\b/, true),
   C('sardines', 'Canned sardines', 'Canned/pantry', 'FreshCo', 'tin', 'cnt', {}, /sardine/, true),
   C('cottage', 'Cottage cheese', 'Dairy', 'FreshCo', 'tub', 'cnt', { cup: 2 }, /cottage/),
@@ -104,7 +107,7 @@ export const catById = (id?: string) => CATALOG.find((c) => c.id === id)
 export const matchCat = (name: string, forMeals = false) => CATALOG.find((c) => !(forMeals && c.noBuild) && c.re.test(name.toLowerCase()))
 
 /* ------------------------------------------------ prices (src/data/shopping-prices.json)
-   A plain number = PLACEHOLDER price (per catalogue pack). An object = real-ish store ESTIMATE:
+   A plain number = PLACEHOLDER price (per catalogue pack). An object = a REAL store price (checked on _meta.checked):
    { price, basis?: 'pack' | 'kg', packLabel?, packQty?, kgPer?, sale?, note? }
    packQty = how many catalogue units (cat.unit) one real pack holds; kgPer = kg per catalogue unit (kg-priced items). */
 export interface PriceEntry {
@@ -115,11 +118,18 @@ export interface PriceEntry {
   kgPer?: number
   sale?: boolean
   note?: string
+  /** out of stock at the store when checked */
+  oos?: boolean
+  /** pack weight not shown on the shelf, so protein per gram is approximate */
+  approx?: boolean
+  /** bulk bag weight in kg (Skyfarm phone orders) */
+  bulkKg?: number
 }
 type RawEntry = number | PriceEntry
 const PRICES = pricesRaw as unknown as Record<string, Partial<Record<Store, RawEntry>> | Record<string, string>>
-export const PRICE_META = ((pricesRaw as unknown as { _meta?: { regionNote?: string; skyfarmNote?: string } })._meta ?? {}) as { regionNote?: string; skyfarmNote?: string }
-export const REGION_NOTE = PRICE_META.regionNote ?? 'FreshCo prices are estimates from a Fort McMurray, AB store; will update for your city.'
+export interface PriceMeta { regionNote?: string; skyfarmNote?: string; checked?: string; sources?: Record<string, { line: string; phone?: string }>; flyerItems?: { name: string; price: number; per: string }[] }
+export const PRICE_META = ((pricesRaw as unknown as { _meta?: PriceMeta })._meta ?? {}) as PriceMeta
+export const REGION_NOTE = PRICE_META.regionNote ?? 'Prices are real shelf prices from the Oshawa stores (checked Oct 3 2026). Prices change, so type what you actually paid to override them.'
 export const SKYFARM_NOTE = PRICE_META.skyfarmNote ?? 'order by phone'
 
 /** The entry used for a catalogue item at a store, normalised. */
@@ -132,12 +142,14 @@ export function priceEntry(catId: string, store: Store): { e: PriceEntry; src: '
   const other = STORES.map((s) => p[s]).find((v) => typeof v === 'number')
   return typeof other === 'number' ? { e: { price: other }, src: 'placeholder' } : undefined
 }
-/** Short price tag for a catalogue chip, e.g. "~$4.39/kg estimate". */
+/** Wording for a price that comes from the data file (real store price) vs a placeholder. */
+export const srcLabel = (src: 'estimate' | 'placeholder' | string) => (src === 'estimate' ? 'store price' : 'placeholder price')
+/** Short price tag for a catalogue chip, e.g. "$4.39/kg store price". */
 export function priceTag(catId: string, store: Store): string {
   const x = priceEntry(catId, store)
   if (!x) return 'no price'
   const per = x.e.basis === 'kg' ? '/kg' : ''
-  return `~${money(x.e.price)}${per} ${x.src === 'estimate' ? 'estimate' : 'placeholder'}`
+  return x.src === 'estimate' ? `${money(x.e.price)}${per}${x.e.oos ? ' · out of stock' : ''}` : `~${money(x.e.price)}${per} placeholder`
 }
 /** Cost of qty × unit for a catalogue item, bought by whole packs (kg-priced items: price × kg). */
 export function estimate(catId: string | undefined, qty: number, unit: string, store: Store): { price: number; src: 'estimate' | 'placeholder' } | undefined {
@@ -155,10 +167,10 @@ export function estimate(catId: string | undefined, qty: number, unit: string, s
   return { price: round(e.price * Math.max(packs, 0), 2), src }
 }
 /** Label info for a row: pack size / sale / note, only while the price comes from the file. */
-export function priceInfo(it: { cat?: string; store: Store; priceSrc: PriceSrc }): { packLabel?: string; kg?: boolean; sale?: boolean; note?: string } | null {
+export function priceInfo(it: { cat?: string; store: Store; priceSrc: PriceSrc }): { packLabel?: string; kg?: boolean; sale?: boolean; note?: string; oos?: boolean; approx?: boolean } | null {
   if (it.priceSrc !== 'estimate' || !it.cat) return null
   const x = priceEntry(it.cat, it.store)
-  return x && x.src === 'estimate' ? { packLabel: x.e.packLabel, kg: x.e.basis === 'kg', sale: x.e.sale, note: x.e.note } : null
+  return x && x.src === 'estimate' ? { packLabel: x.e.packLabel, kg: x.e.basis === 'kg', sale: x.e.sale, note: x.e.note, oos: x.e.oos, approx: x.e.approx } : null
 }
 
 /* ------------------------------------------------ store */
@@ -173,7 +185,7 @@ function starter(): Item[] {
   return [
     row('chicken', 1),
     row('eggs', 1),
-    row('beef', 0.5),
+    row('beef', 0.45),
     row('sardines', 4),
     row('yoghurt', 1),
     row('milk', 2),
@@ -202,7 +214,9 @@ function load(): ShopState {
       const p = JSON.parse(raw) as Partial<ShopState>
       const f = fresh()
       // keep the user's list and edits; only re-derive prices that came from the data file (typed prices win)
-      const items = (Array.isArray(p.items) ? p.items : f.items).map((i) => (i.cat && i.priceSrc !== 'edited' ? { ...i, ...repriced(i) } : i))
+      // chicken thighs / ground beef are not at Skyfarm any more: untouched (non-typed-price) rows move to FreshCo, which has real prices
+      const mv = (i: Item): Item => ((i.cat === 'chicken' || i.cat === 'beef') && i.store === 'Skyfarm' && i.priceSrc !== 'edited' ? { ...i, store: 'FreshCo' } : i)
+      const items = (Array.isArray(p.items) ? p.items : f.items).map(mv).map((i) => (i.cat && i.priceSrc !== 'edited' ? { ...i, ...repriced(i) } : i))
       return { ...f, ...p, v: 1, items }
     }
   } catch {
@@ -517,7 +531,7 @@ export function groupItems(items: Item[], mode: 'store' | 'aisle', filter: 'all'
 }
 export function listText(items: Item[], mode: 'store' | 'aisle', filter: 'all' | Store) {
   const need = items.filter((i) => i.stock === 'need')
-  const line = (i: Item) => `[ ] ${i.name} — ${fmtQty(i.qty, i.unit) || '1'}${i.price !== undefined ? ` (~${money(i.price)} ${i.priceSrc === 'placeholder' ? 'placeholder price' : i.priceSrc === 'edited' ? '' : 'estimate'})`.replace(' )', ')') : ''}${i.store === 'Skyfarm' ? ' [order by phone]' : ''}`
+  const line = (i: Item) => `[ ] ${i.name} — ${fmtQty(i.qty, i.unit) || '1'}${i.price !== undefined ? ` (~${money(i.price)} ${i.priceSrc === 'placeholder' ? 'placeholder price' : i.priceSrc === 'edited' ? '' : 'store price'})`.replace(' )', ')') : ''}${i.store === 'Skyfarm' ? ' [order by phone]' : ''}`
   const out: string[] = [`Shopping list — ${need.length} to get`, `(${REGION_NOTE} Items marked placeholder have no real price yet.)`, '']
   for (const g of groupItems(need, mode, filter)) {
     if (g.store) out.push(`== ${g.store} ==`)
