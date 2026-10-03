@@ -51,13 +51,13 @@ export default function ShoppingExtras() {
             </li>
           ))}
         </ol>
-        <p className="hint">Uses the real Oshawa shelf prices (checked Oct 3 2026) and <b>approximate</b> protein per pack (label-style averages, not exact). <b>Bulk</b> = Skyfarm 5 kg bags you order by phone, so they are cheap per gram but a big upfront spend (freeze in portions); FreshCo packs are what you can grab today. <b>≈ weight</b> = the shelf shows no pack weight (chicken thighs 6 ct, chicken breast 7 pc, leg meat), so the weight — and the cost per gram — is an assumption. “Placeholder price” = no real price yet.</p>
+        <p className="hint">Uses the real Oshawa shelf prices (checked Oct 3 2026) and <b>approximate</b> protein per pack (label-style averages, not exact). <b>Bulk</b> = Skyfarm 5 kg bags you order by phone, so they are cheap per gram but a big upfront spend (freeze in portions); FreshCo packs are what you can grab today. <b>≈ weight</b> = the shelf shows no pack weight (chicken thighs 6 ct, chicken breast 7 pc, leg meat), so the weight — and the cost per gram — is an assumption. “Placeholder price” = no real price yet. Skyfarm flyer cuts (beef back ribs, beef shank, lamb shank) are <b>protein unknown</b> (bone-in, so protein per lb isn’t reliable) and are left out of this ranking rather than guessed.</p>
       </Tilt>
     </>
   )
 }
 
-/** Where the prices come from + flyer extras (info only). */
+/** Where the prices come from + the Skyfarm flyer note. */
 export function PriceSources() {
   const src = PRICE_META.sources ?? {}
   const phone = src.Skyfarm?.phone
@@ -66,9 +66,7 @@ export function PriceSources() {
     <div className="price-src">
       <small>🏬 {src.FreshCo?.line ?? 'FreshCo, Oshawa'}</small>
       <small>🥩 {phone ? <>{line.split(phone)[0]}<a href={`tel:${phone.replace(/[^0-9]/g, '')}`}>{phone}</a>{line.split(phone)[1]}</> : line}</small>
-      {PRICE_META.flyerItems && PRICE_META.flyerItems.length > 0 && (
-        <small className="muted">Flyer extras (info only, not on your list): {PRICE_META.flyerItems.map((f) => `${f.name} $${f.price.toFixed(2)}/${f.per}`).join(' · ')}.</small>
-      )}
+      {PRICE_META.flyer && <small className="muted">🏷 Skyfarm weekly flyer ({PRICE_META.flyer.text}) — beef back ribs, beef shank and lamb shank are in Staples at their per-lb flyer prices; after {new Date(PRICE_META.flyer.until + 'T00:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })} they show “{PRICE_META.flyer.expired}”.</small>}
       <small className="muted">Real prices, but they change — a price you type always wins. Weight-less packs are approximate for protein-per-gram.</small>
     </div>
   )
