@@ -1,215 +1,273 @@
 {
-  "_meta": {
-    "regionNote": "FreshCo prices are estimates from a Fort McMurray, AB store; will update for your city.",
-    "skyfarmNote": "order by phone",
-    "updated": "2026-10-02"
+ "_meta": {
+  "regionNote": "Prices are real shelf prices from the Oshawa stores below (checked Oct 3 2026). Prices change, so type what you actually paid to override them.",
+  "skyfarmNote": "order by phone",
+  "updated": "2026-10-03",
+  "checked": "2026-10-03",
+  "sources": {
+   "FreshCo": {
+    "line": "FreshCo Wentworth & Cedar, 199 Wentworth St W, Oshawa, checked Oct 3 2026"
+   },
+   "Skyfarm": {
+    "line": "Skyfarm, 1150 Simcoe St N, Oshawa, 905-728-7565, open daily 9am-9pm, order by phone, flyer valid Oct 2-8",
+    "phone": "905-728-7565"
+   }
   },
-  "_howto": "Key = catalogue item id (src/lib/shopping.ts). Value = { FreshCo?, Skyfarm? }. A plain number is a PLACEHOLDER price (labelled 'placeholder price' in the app). An object is a store ESTIMATE (labelled 'estimate'): price (CAD), packLabel (pack size shown in the app), packQty (how many of the app's item unit one pack holds, default 1), basis 'kg' = priced per kg (kgPer = kg per app unit, default 1), sale, note. Prices the user types in the app are treated as real and always win over this file.",
-  "eggs": {
-    "FreshCo": {
-      "price": 4.07,
-      "packLabel": "12 ct"
-    }
-  },
-  "milk": {
-    "FreshCo": {
-      "price": 6.35,
-      "packLabel": "4 L",
-      "packQty": 4
-    }
-  },
-  "yoghurt": {
-    "FreshCo": {
-      "price": 6.99,
-      "packLabel": "650 g"
-    }
-  },
-  "rice": {
-    "FreshCo": {
-      "price": 12.0,
-      "packLabel": "4.54 kg basmati",
-      "sale": true
-    }
-  },
-  "oats": {
-    "FreshCo": {
-      "price": 2.97,
-      "packLabel": "1 kg quick oats"
-    }
-  },
-  "pasta": {
-    "FreshCo": {
-      "price": 2.0,
-      "packLabel": "900 g"
-    }
-  },
-  "potatoes": {
-    "FreshCo": {
-      "price": 4.99,
-      "packLabel": "2.27 kg"
-    }
-  },
-  "bread": {
-    "FreshCo": {
-      "price": 2.48,
-      "packLabel": "570 g whole wheat"
-    }
-  },
-  "pb": {
-    "FreshCo": {
-      "price": 5.0,
-      "packLabel": "1 kg"
-    }
-  },
-  "olive-oil": {
-    "FreshCo": {
-      "price": 8.0,
-      "packLabel": "750 ml"
-    }
-  },
-  "nuts": {
-    "FreshCo": {
-      "price": 5.0,
-      "packLabel": "250 g almonds"
-    }
-  },
-  "avocado": {
-    "FreshCo": {
-      "price": 5.99,
-      "packLabel": "5 ct",
-      "packQty": 5
-    }
-  },
-  "sardines": {
-    "FreshCo": {
-      "price": 1.29,
-      "packLabel": "155 g tin"
-    }
-  },
-  "veg": {
-    "FreshCo": {
-      "price": 6.49,
-      "packLabel": "2 kg frozen mixed"
-    }
-  },
-  "beans": {
-    "FreshCo": {
-      "price": 1.49,
-      "packLabel": "540 ml tin",
-      "sale": true
-    }
-  },
-  "tomato-paste": {
-    "FreshCo": {
-      "price": 1.29,
-      "packLabel": "156 ml tin"
-    }
-  },
-  "onions": {
-    "FreshCo": {
-      "price": 3.99,
-      "packLabel": "1.36 kg"
-    }
-  },
-  "garlic": {
-    "FreshCo": {
-      "price": 1.49,
-      "packLabel": "5 pack"
-    }
-  },
-  "spinach": {
-    "FreshCo": {
-      "price": 2.49,
-      "packLabel": "1 bunch"
-    }
-  },
-  "sweet-potatoes": {
-    "FreshCo": {
-      "price": 4.39,
-      "basis": "kg",
-      "packLabel": "per kg"
-    }
-  },
-  "bananas": {
-    "FreshCo": {
-      "price": 1.96,
-      "basis": "kg",
-      "packLabel": "per kg",
-      "kgPer": 1,
-      "note": "about 1 kg per bunch"
-    }
-  },
-  "tomatoes": {
-    "FreshCo": {
-      "price": 4.39,
-      "basis": "kg",
-      "packLabel": "per kg"
-    }
-  },
-  "ginger": {
-    "FreshCo": {
-      "price": 5.49,
-      "basis": "kg",
-      "packLabel": "per kg"
-    }
-  },
-  "peppers": {
-    "FreshCo": {
-      "price": 6.59,
-      "basis": "kg",
-      "packLabel": "per kg",
-      "kgPer": 0.2,
-      "note": "about 200 g per pepper"
-    }
-  },
-  "chicken-breast": {
-    "Skyfarm": {
-      "price": 63.0,
-      "note": "bag, weight unknown"
-    }
-  },
-  "chicken": {
-    "Skyfarm": 13.0,
-    "FreshCo": 12.0
-  },
-  "beef": {
-    "Skyfarm": 14.0,
-    "FreshCo": 13.0
-  },
-  "cheese": {
-    "FreshCo": 6.0
-  },
-  "cottage": {
-    "FreshCo": 4.5
-  },
-  "beans-dry": {
-    "FreshCo": 3.5
-  },
-  "oil": {
-    "FreshCo": 5.0
-  },
-  "yam": {
-    "FreshCo": 3.5
-  },
-  "plantain": {
-    "FreshCo": 1.0
-  },
-  "chilli": {
-    "FreshCo": 2.0
-  },
-  "noodles": {
-    "FreshCo": 4.0
-  },
-  "honey": {
-    "FreshCo": 5.0
-  },
-  "mayo": {
-    "FreshCo": 4.0
-  },
-  "spices": {
-    "FreshCo": 8.0
-  },
-  "tortillas": {
-    "FreshCo": 3.5
+  "flyerItems": [
+   {
+    "name": "Beef back ribs",
+    "price": 4.99,
+    "per": "lb"
+   },
+   {
+    "name": "Beef shank",
+    "price": 4.49,
+    "per": "lb"
+   },
+   {
+    "name": "Lamb shank",
+    "price": 6.99,
+    "per": "lb"
+   }
+  ]
+ },
+ "_howto": "Key = catalogue item id (src/lib/shopping.ts). Value = { FreshCo?, Skyfarm? }. An OBJECT is a real store price (CAD) checked on _meta.checked: price, packLabel (pack size shown in the app), packQty (how many of the app's item unit one pack holds, default 1), basis 'kg' = priced per kg (kgPer = kg per app unit, default 1), sale, oos (out of stock), approx (pack weight not shown on the shelf, so protein per gram is approximate), bulkKg (bulk bag weight), note. A plain NUMBER is a PLACEHOLDER (no real price yet; labelled 'placeholder price' in the app). Prices the user types in the app always win over this file.",
+ "eggs": {
+  "FreshCo": {
+   "price": 3.89,
+   "packLabel": "12 ct"
   }
+ },
+ "milk": {
+  "FreshCo": {
+   "price": 6.44,
+   "packLabel": "2% 4 L",
+   "packQty": 4
+  }
+ },
+ "yoghurt": {
+  "FreshCo": {
+   "price": 5.49,
+   "packLabel": "650 g 0% Greek"
+  }
+ },
+ "rice": {
+  "FreshCo": {
+   "price": 12.0,
+   "packLabel": "4.54 kg basmati",
+   "sale": true
+  }
+ },
+ "oats": {
+  "FreshCo": {
+   "price": 2.99,
+   "packLabel": "1 kg quick oats"
+  }
+ },
+ "pasta": {
+  "FreshCo": {
+   "price": 2.0,
+   "packLabel": "900 g"
+  }
+ },
+ "potatoes": {
+  "FreshCo": {
+   "price": 5.99,
+   "packLabel": "4.54 kg"
+  }
+ },
+ "bread": {
+  "FreshCo": {
+   "price": 2.48,
+   "packLabel": "675 g whole wheat"
+  }
+ },
+ "pb": {
+  "FreshCo": {
+   "price": 5.0,
+   "packLabel": "1 kg"
+  }
+ },
+ "olive-oil": {
+  "FreshCo": {
+   "price": 8.0,
+   "packLabel": "750 ml"
+  }
+ },
+ "nuts": {
+  "FreshCo": {
+   "price": 5.0,
+   "packLabel": "250 g almonds"
+  }
+ },
+ "avocado": {
+  "FreshCo": {
+   "price": 4.99,
+   "packLabel": "5 ct",
+   "packQty": 5
+  }
+ },
+ "sardines": {
+  "FreshCo": {
+   "price": 1.29,
+   "packLabel": "155 g tin"
+  }
+ },
+ "veg": {
+  "FreshCo": {
+   "price": 6.49,
+   "packLabel": "2 kg frozen mixed"
+  }
+ },
+ "beans": {
+  "FreshCo": {
+   "price": 1.79,
+   "packLabel": "540 ml kidney beans tin"
+  }
+ },
+ "tomato-paste": {
+  "FreshCo": {
+   "price": 1.29,
+   "packLabel": "156 ml tin"
+  }
+ },
+ "onions": {
+  "FreshCo": {
+   "price": 2.99,
+   "packLabel": "1.36 kg"
+  }
+ },
+ "garlic": {
+  "FreshCo": {
+   "price": 1.49,
+   "packLabel": "5 pack"
+  }
+ },
+ "spinach": {
+  "FreshCo": {
+   "price": 2.49,
+   "packLabel": "1 bunch"
+  }
+ },
+ "sweet-potatoes": {
+  "FreshCo": {
+   "price": 3.95,
+   "basis": "kg",
+   "packLabel": "per kg"
+  }
+ },
+ "bananas": {
+  "FreshCo": {
+   "price": 1.52,
+   "basis": "kg",
+   "packLabel": "per kg",
+   "kgPer": 1,
+   "note": "about 1 kg per bunch"
+  }
+ },
+ "tomatoes": {
+  "FreshCo": {
+   "price": 4.39,
+   "basis": "kg",
+   "packLabel": "per kg"
+  }
+ },
+ "ginger": {
+  "FreshCo": {
+   "price": 5.49,
+   "basis": "kg",
+   "packLabel": "per kg"
+  }
+ },
+ "peppers": {
+  "FreshCo": 1.5
+ },
+ "chicken-breast": {
+  "Skyfarm": {
+   "price": 63.0,
+   "packLabel": "5 kg bag",
+   "bulkKg": 5,
+   "note": "bulk bag, about $12.60/kg, order by phone"
+  },
+  "FreshCo": {
+   "price": 23.0,
+   "packLabel": "7 pc boneless",
+   "approx": true,
+   "note": "pack weight not shown"
+  }
+ },
+ "chicken": {
+  "FreshCo": {
+   "price": 8.0,
+   "packLabel": "6 ct bone-in thighs",
+   "approx": true,
+   "note": "pack weight not shown (about 1 kg assumed)"
+  }
+ },
+ "beef": {
+  "FreshCo": {
+   "price": 9.5,
+   "packLabel": "450 g extra-lean",
+   "packQty": 0.45
+  }
+ },
+ "cheese": {
+  "FreshCo": 6.0
+ },
+ "cottage": {
+  "FreshCo": 4.5
+ },
+ "beans-dry": {
+  "FreshCo": 3.5
+ },
+ "oil": {
+  "FreshCo": 5.0
+ },
+ "yam": {
+  "FreshCo": 3.5
+ },
+ "plantain": {
+  "FreshCo": 1.0
+ },
+ "chilli": {
+  "FreshCo": 2.0
+ },
+ "noodles": {
+  "FreshCo": 4.0
+ },
+ "honey": {
+  "FreshCo": 5.0
+ },
+ "mayo": {
+  "FreshCo": 4.0
+ },
+ "spices": {
+  "FreshCo": 8.0
+ },
+ "tortillas": {
+  "FreshCo": 3.5
+ },
+ "chicken-legs": {
+  "Skyfarm": {
+   "price": 60.0,
+   "packLabel": "5 kg bag leg meat",
+   "bulkKg": 5,
+   "note": "bulk bag, about $12/kg, order by phone"
+  }
+ },
+ "curry": {
+  "FreshCo": {
+   "price": 2.0,
+   "packLabel": "130 g",
+   "oos": true,
+   "note": "out of stock"
+  }
+ },
+ "bouillon": {
+  "FreshCo": {
+   "price": 2.98,
+   "packLabel": "63 g Knorr chicken bouillon cubes",
+   "sale": true
+  }
+ }
 }
