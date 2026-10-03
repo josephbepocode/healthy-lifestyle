@@ -22,6 +22,8 @@ export const PROTEIN_ROWS: PRow[] = [
   { cat: 'chicken-legs', store: 'Skyfarm', g: 900, label: 'Skyfarm chicken leg meat, 5 kg bag (bulk)', bulk: true, approx: true },
   { cat: 'cheese', store: 'FreshCo', g: 100, label: '400 g cheese' },
 ]
+/** Skyfarm flyer cuts: bone-in, protein per lb not reliably known, so they are NOT ranked (no guessing). */
+export const PROTEIN_UNKNOWN = ['beef-ribs', 'beef-shank', 'lamb-shank']
 export interface ProteinCost {
   per10g: number
   src: 'estimate' | 'placeholder'

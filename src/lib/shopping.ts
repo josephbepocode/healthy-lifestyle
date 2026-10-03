@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import pricesRaw from '../data/shopping-prices.json'
-import { round, uid } from './util'
+import { round, todayStr, uid } from './util'
 import type { Recipe } from '../types'
 
 /** Shopping tab state — its OWN localStorage key; never touches the main app data. */
@@ -67,6 +67,9 @@ export const CATALOG: Cat[] = [
   C('spices', 'Basic spices & stock cubes', 'Canned/pantry', 'FreshCo', 'pack', 'pack', {}, /\b(salt|spices?|curry|thyme|paprika|bouillon|seasoning|stock|crayfish|locust|iru)\b/, true),
   C('chicken-breast', 'Chicken breast (Skyfarm 5 kg bag)', 'Meat & eggs', 'Skyfarm', 'bag', 'cnt', {}, /chicken breast/, true, true),
   C('chicken-legs', 'Chicken leg meat (Skyfarm 5 kg bag)', 'Meat & eggs', 'Skyfarm', 'bag', 'cnt', {}, /chicken leg meat bulk/, true, true),
+  C('lamb-shank', 'Lamb shank (Skyfarm flyer, per lb)', 'Meat & eggs', 'Skyfarm', 'lb', 'wt', {}, /lamb shank|lamb/, true, true),
+  C('beef-shank', 'Beef shank (Skyfarm flyer, per lb)', 'Meat & eggs', 'Skyfarm', 'lb', 'wt', {}, /shank/, true, true),
+  C('beef-ribs', 'Beef back ribs (Skyfarm flyer, per lb)', 'Meat & eggs', 'Skyfarm', 'lb', 'wt', {}, /back ribs|beef ribs/, true, true),
   C('chicken', 'Chicken thighs', 'Meat & eggs', 'FreshCo', 'kg', 'wt', { g: 1000, '': 6 }, /chicken|drumstick/, true),
   C('beef', 'Ground beef', 'Meat & eggs', 'FreshCo', 'kg', 'wt', { g: 1000 }, /beef|mince/, true),
   C('eggs', 'Eggs', 'Meat & eggs', 'FreshCo', 'dozen', 'cnt', { '': 12 }, /\beggs?\b/, true),
@@ -112,7 +115,7 @@ export const matchCat = (name: string, forMeals = false) => CATALOG.find((c) => 
    packQty = how many catalogue units (cat.unit) one real pack holds; kgPer = kg per catalogue unit (kg-priced items). */
 export interface PriceEntry {
   price: number
-  basis?: 'pack' | 'kg'
+  basis?: 'pack' | 'kg' | 'lb'
   packLabel?: string
   packQty?: number
   kgPer?: number
@@ -124,10 +127,12 @@ export interface PriceEntry {
   approx?: boolean
   /** bulk bag weight in kg (Skyfarm phone orders) */
   bulkKg?: number
+  /** last day (YYYY-MM-DD) the weekly flyer price is valid */
+  flyerUntil?: string
 }
 type RawEntry = number | PriceEntry
 const PRICES = pricesRaw as unknown as Record<string, Partial<Record<Store, RawEntry>> | Record<string, string>>
-export interface PriceMeta { regionNote?: string; skyfarmNote?: string; checked?: string; sources?: Record<string, { line: string; phone?: string }>; flyerItems?: { name: string; price: number; per: string }[] }
+export interface PriceMeta { regionNote?: string; skyfarmNote?: string; checked?: string; sources?: Record<string, { line: string; phone?: string }>; flyer?: { from: string; until: string; text: string; expired: string } }
 export const PRICE_META = ((pricesRaw as unknown as { _meta?: PriceMeta })._meta ?? {}) as PriceMeta
 export const REGION_NOTE = PRICE_META.regionNote ?? 'Prices are real shelf prices from the Oshawa stores (checked Oct 3 2026). Prices change, so type what you actually paid to override them.'
 export const SKYFARM_NOTE = PRICE_META.skyfarmNote ?? 'order by phone'
@@ -144,12 +149,21 @@ export function priceEntry(catId: string, store: Store): { e: PriceEntry; src: '
 }
 /** Wording for a price that comes from the data file (real store price) vs a placeholder. */
 export const srcLabel = (src: 'estimate' | 'placeholder' | string) => (src === 'estimate' ? 'store price' : 'placeholder price')
+/** Weekly-flyer status for a catalogue item at a store: null when it is not a flyer price. Expires automatically by date. */
+export function flyerStatus(catId: string | undefined, store: Store, today = todayStr()): { text: string; expired: boolean } | null {
+  if (!catId) return null
+  const x = priceEntry(catId, store)
+  if (!x || x.src !== 'estimate' || !x.e.flyerUntil) return null
+  const expired = today > x.e.flyerUntil
+  return { text: expired ? (PRICE_META.flyer?.expired ?? 'flyer expired - confirm price') : (PRICE_META.flyer?.text ?? 'flyer prices may change after the end date'), expired }
+}
 /** Short price tag for a catalogue chip, e.g. "$4.39/kg store price". */
 export function priceTag(catId: string, store: Store): string {
   const x = priceEntry(catId, store)
   if (!x) return 'no price'
-  const per = x.e.basis === 'kg' ? '/kg' : ''
-  return x.src === 'estimate' ? `${money(x.e.price)}${per}${x.e.oos ? ' · out of stock' : ''}` : `~${money(x.e.price)}${per} placeholder`
+  const per = x.e.basis === 'kg' ? '/kg' : x.e.basis === 'lb' ? '/lb' : ''
+  const fs = flyerStatus(catId, store)
+  return x.src === 'estimate' ? `${money(x.e.price)}${per}${x.e.oos ? ' · out of stock' : ''}${fs ? (fs.expired ? ' · flyer expired' : ' · flyer') : ''}` : `~${money(x.e.price)}${per} placeholder`
 }
 /** Cost of qty × unit for a catalogue item, bought by whole packs (kg-priced items: price × kg). */
 export function estimate(catId: string | undefined, qty: number, unit: string, store: Store): { price: number; src: 'estimate' | 'placeholder' } | undefined {
@@ -161,16 +175,16 @@ export function estimate(catId: string | undefined, qty: number, unit: string, s
   if (cat.fam === 'pack') return { price: round(e.price, 2), src }
   const per = cat.per[unit]
   const inCat = per ? qty / per : unit === cat.unit ? qty : 1 // catalogue units wanted (unknown unit → one pack)
-  if (e.basis === 'kg') return { price: round(e.price * (e.kgPer ?? 1) * Math.max(inCat, 0), 2), src }
+  if (e.basis === 'kg' || e.basis === 'lb') return { price: round(e.price * (e.kgPer ?? 1) * Math.max(inCat, 0), 2), src }
   let packs = inCat / (e.packQty ?? 1)
   if (src === 'estimate' || !['g', 'ml', 'kg', 'L'].includes(unit)) packs = Math.ceil(packs - 1e-9)
   return { price: round(e.price * Math.max(packs, 0), 2), src }
 }
 /** Label info for a row: pack size / sale / note, only while the price comes from the file. */
-export function priceInfo(it: { cat?: string; store: Store; priceSrc: PriceSrc }): { packLabel?: string; kg?: boolean; sale?: boolean; note?: string; oos?: boolean; approx?: boolean } | null {
+export function priceInfo(it: { cat?: string; store: Store; priceSrc: PriceSrc }): { packLabel?: string; kg?: boolean; per?: 'kg' | 'lb'; sale?: boolean; note?: string; oos?: boolean; approx?: boolean } | null {
   if (it.priceSrc !== 'estimate' || !it.cat) return null
   const x = priceEntry(it.cat, it.store)
-  return x && x.src === 'estimate' ? { packLabel: x.e.packLabel, kg: x.e.basis === 'kg', sale: x.e.sale, note: x.e.note, oos: x.e.oos, approx: x.e.approx } : null
+  return x && x.src === 'estimate' ? { packLabel: x.e.packLabel, kg: x.e.basis === 'kg' || x.e.basis === 'lb', per: x.e.basis === 'lb' ? 'lb' : 'kg', sale: x.e.sale, note: x.e.note, oos: x.e.oos, approx: x.e.approx } : null
 }
 
 /* ------------------------------------------------ store */
