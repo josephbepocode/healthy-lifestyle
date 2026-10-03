@@ -4,16 +4,16 @@ import { Empty, Modal, Stepper, Tilt } from '../components/ui'
 import { toast } from '../lib/fx'
 import { buzz, num } from '../lib/util'
 import ShoppingExtras, { PriceSources } from './ShoppingExtras'
-import { costPer10g } from '../lib/nutri'
+import { PROTEIN_UNKNOWN, costPer10g } from '../lib/nutri'
 import { useApp } from '../lib/store'
 import { recipeFor } from '../lib/actions'
 import {
   AISLES, CATALOG, STORES, addFromCatalog, addLines, buildLines, clearStock, copyText, cycleStore, deleteItem, fmtQty, groupItems, listText, money,
-  moveItem, priceInfo, priceTag, REGION_NOTE, SKYFARM_NOTE, planWeek, quickAdd, readBudget, resetStarter, restoreItems, saveItem, setFilter, setGroupBy, setStoreMode, sumPrices, useShop,
+  flyerStatus, moveItem, priceInfo, priceTag, REGION_NOTE, SKYFARM_NOTE, planWeek, quickAdd, readBudget, resetStarter, restoreItems, saveItem, setFilter, setGroupBy, setStoreMode, sumPrices, useShop,
   type Aisle, type Item, type Store,
 } from '../lib/shopping'
 
-const UNITS = ['', 'kg', 'g', 'L', 'ml', 'dozen', 'pack', 'bag', 'tin', 'jar', 'loaf', 'bunch', 'bottle', 'tub', 'block', 'cup', 'tbsp', 'tsp', 'slice', 'clove']
+const UNITS = ['', 'kg', 'g', 'L', 'ml', 'lb', 'dozen', 'pack', 'bag', 'tin', 'jar', 'loaf', 'bunch', 'bottle', 'tub', 'block', 'cup', 'tbsp', 'tsp', 'slice', 'clove']
 
 /* ------------------------------------------------ item form */
 function ItemForm({ initial, onClose }: { initial?: Item; onClose: () => void }) {
@@ -195,6 +195,7 @@ export default function Shopping() {
     const qty = fmtQty(it.qty, it.unit)
     const info = priceInfo(it)
     const pc = costPer10g(it.cat, it.store)
+    const fs = flyerStatus(it.cat, it.store)
     return (
       <li key={it.id} className={`shop-li ${fading.has(it.id) ? 'bought' : ''}`}>
         <Tilt className={`shop-row ${isHave ? 'have' : ''}`} max={2} glare={false}>
@@ -214,11 +215,13 @@ export default function Shopping() {
             <small>
               {it.price !== undefined ? (
                 it.priceSrc === 'placeholder' ? <><i className="ph">~{money(it.price)}</i> · placeholder price</>
-                : it.priceSrc === 'estimate' ? <><i className="ph">{money(it.price)}</i> · store price{info?.kg ? ' (per kg)' : ''}{info?.packLabel && !info.kg ? ` · pack: ${info.packLabel}` : ''}{info?.sale ? ' · sale' : ''}{info?.note ? ` · ${info.note}` : ''}{info?.oos ? ' · OUT OF STOCK' : ''}</>
+                : it.priceSrc === 'estimate' ? <><i className="ph">{money(it.price)}</i> · store price{info?.kg ? ` (per ${info.per ?? 'kg'})` : ''}{info?.packLabel && !info.kg ? ` · pack: ${info.packLabel}` : ''}{info?.sale ? ' · sale' : ''}{info?.note ? ` · ${info.note}` : ''}{info?.oos ? ' · OUT OF STOCK' : ''}</>
                 : <>{money(it.price)}</>
               ) : <span className="muted">no price</span>}
               {pc && it.price !== undefined ? ` · ~${money(pc.per10g)}/10 g protein (${pc.src === 'estimate' ? 'store price' : 'placeholder'}${pc.bulk ? ', bulk bag' : ''}${pc.approx ? ', weight approximate' : ''})` : ''}
               {it.note ? ` · ${it.note}` : ''}
+              {it.cat && PROTEIN_UNKNOWN.includes(it.cat) ? ' · protein unknown (not ranked)' : ''}
+              {fs && <span className={fs.expired ? 'neg' : 'phone-note'}> · {fs.text}</span>}
               {it.store === 'Skyfarm' && <span className="phone-note"> · ☎ {SKYFARM_NOTE}</span>}
             </small>
           </div>
