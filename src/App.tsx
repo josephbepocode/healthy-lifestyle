@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import Today from './screens/Today'
+import Home from './screens/Home'
 import Meals from './screens/Meals'
 import Workouts from './screens/Workouts'
 import Progress from './screens/Progress'
@@ -20,21 +20,22 @@ import { useApp } from './lib/store'
 import { trackTasks } from './lib/review'
 import { activeReminders, reminders } from './lib/reminders'
 import { todayStr } from './lib/util'
+import { showNotice } from './lib/notify'
 
 
-const TABS: (Nav & { more?: boolean })[] = [
-  { id: 'today', label: 'Today', icon: '◉', key: '1' },
-  { id: 'meals', label: 'Meals', icon: '🍽', key: '2' },
-  { id: 'workouts', label: 'Workouts', icon: '🏋', key: '3' },
-  { id: 'progress', label: 'Progress', icon: '📈', key: '4' },
-  { id: 'habits', label: 'Habits', icon: '💧', key: '5', more: true },
-  { id: 'study', label: 'Study', icon: '📚', key: '6', more: true },
-  { id: 'money', label: 'Money', icon: '$', key: '7', more: true },
-  { id: 'shopping', label: 'Shopping', icon: '🛒', key: '8' },
-  { id: 'tasks', label: 'Tasks', icon: '✓', key: '9', more: true },
-  { id: 'time', label: 'Time', icon: '⏱', key: '0', more: true },
-  { id: 'review', label: 'Review', icon: '🗓', key: 'r', more: true },
-  { id: 'settings', label: 'Settings', icon: '⚙', key: ',', more: true },
+const TABS: (Nav & { more?: boolean; hint?: string })[] = [
+  { id: 'today', label: 'Home', icon: '🏠', key: '1' },
+  { id: 'meals', label: 'Food', icon: '🍽', key: '2' },
+  { id: 'workouts', label: 'Workout', icon: '🏋', key: '3' },
+  { id: 'progress', label: 'Weight & progress', icon: '📈', key: '4', more: true, hint: 'Weigh-ins and charts' },
+  { id: 'habits', label: 'Water & sleep', icon: '💧', key: '5', more: true, hint: 'Daily habits' },
+  { id: 'shopping', label: 'Shopping list', icon: '🛒', key: '8', more: true, hint: 'Groceries and prices' },
+  { id: 'study', label: 'French & study', icon: '📚', key: '6', more: true, hint: 'Study time, CELPIP' },
+  { id: 'money', label: 'Money & bills', icon: '💵', key: '7', more: true, hint: 'Paycheck plan, bills' },
+  { id: 'tasks', label: 'Tasks', icon: '✓', key: '9', more: true, hint: 'To-do list' },
+  { id: 'time', label: 'Time tracker', icon: '⏱', key: '0', more: true, hint: 'Timers' },
+  { id: 'review', label: 'Weekly review', icon: '🗓', key: 'r', more: true, hint: 'How the week went' },
+  { id: 'settings', label: 'Reminders & settings', icon: '🔔', key: ',', more: true, hint: 'Notifications, backup' },
 ]
 type Tab = string
 const ALL = new Set(TABS.map((t) => t.id))
@@ -85,20 +86,35 @@ export default function App() {
       removeEventListener('keydown', k)
     }
   }, [])
-  // optional browser notifications while the app is open (cannot fire when the app is closed)
+  // Reminder notifications. A web app with no push server can only check when it is opened or brought
+  // back to the front, so we check on open, on every return to the app, and once a minute while open.
+  // Uses the service worker (registration.showNotification): phones reject `new Notification()`.
   useEffect(() => {
-    if (!rem.notify || typeof Notification === 'undefined' || Notification.permission !== 'granted') return
-    const run = () => {
-      const day = todayStr()
-      const seen = reminders.get().notified
-      const fresh = activeReminders(day).filter((r) => seen[r.id] !== day)
-      if (!fresh.length) return
-      fresh.slice(0, 3).forEach((r) => new Notification(r.title, { body: r.body }))
-      reminders.set((x) => ({ ...x, notified: { ...x.notified, ...Object.fromEntries(fresh.map((r) => [r.id, day])) } }))
+    if (!rem.notify) return
+    let busy = false
+    const run = async () => {
+      if (busy || document.visibilityState !== 'visible' || typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+      busy = true
+      try {
+        const day = todayStr()
+        const seen = reminders.get().notified
+        const fresh = activeReminders(day).filter((r) => seen[r.id] !== day).slice(0, 3)
+        const shown: string[] = []
+        for (const r of fresh) if (await showNotice(`${r.icon} ${r.title}`, r.body, { tag: r.id, go: r.go })) shown.push(r.id)
+        if (shown.length) reminders.set((x) => ({ ...x, notified: { ...x.notified, ...Object.fromEntries(shown.map((id) => [id, day])) } }))
+      } finally {
+        busy = false
+      }
     }
     run()
     const t = setInterval(run, 60000)
-    return () => clearInterval(t)
+    document.addEventListener('visibilitychange', run)
+    addEventListener('focus', run)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', run)
+      removeEventListener('focus', run)
+    }
   }, [rem.notify])
 
   const main = TABS.filter((t) => !t.more)
@@ -122,14 +138,12 @@ export default function App() {
         </button>
         <div className="tb-actions">
           {s.activeTimer && <button className="live" onClick={() => go('time')}><i className="pulse-dot" /> Timer</button>}
-          <button className="tb-search" onClick={() => setPal(true)} aria-label="Quick add (Ctrl or Cmd K)"><span>Quick add…</span><kbd>⌘K</kbd></button>
-          <button className="tb-bell" onClick={() => go('today')} aria-label={`${nOpen} reminders`}>🔔{nOpen > 0 && <i>{nOpen}</i>}</button>
-          <button className="plus" onClick={() => setPal(true)} aria-label="Quick add">＋</button>
+          <button className="tb-bell" onClick={() => go('settings')} aria-label={`Reminders (${nOpen} today)`}>🔔{nOpen > 0 && <i>{nOpen}</i>}</button>
         </div>
       </header>
 
       <main key={tab} className="main">
-        {tab === 'today' && <Today go={go} />}
+        {tab === 'today' && <Home go={go} />}
         {tab === 'meals' && <Meals />}
         {tab === 'workouts' && <Workouts />}
         {tab === 'progress' && <Progress />}
@@ -143,32 +157,30 @@ export default function App() {
         {tab === 'settings' && <Settings />}
       </main>
 
-      <nav className="dock" aria-label="Main">
-        {TABS.map((t) => (
-          <button key={t.id} className={`${tab === t.id ? 'on' : ''} ${t.more ? 'dk-more' : ''}`} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined} title={`${t.label}${t.key ? ` (${t.key})` : ''}`}>
+      <nav className="dock simple-dock" aria-label="Main">
+        {main.map((t) => (
+          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
             <span className="ni" aria-hidden>{t.icon}</span>
             <span className="nl">{t.label}</span>
           </button>
         ))}
-        <button className={`dk-morebtn ${onMore ? 'on' : ''}`} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-haspopup="dialog">
-          <span className="ni" aria-hidden>⋯</span>
-          <span className="nl">More</span>
+        <button className={onMore ? 'on' : ''} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-haspopup="dialog">
+          <span className="ni" aria-hidden>☰</span>
+          <span className="nl">{onMore ? TABS.find((t) => t.id === tab)?.label.split(' ')[0] : 'More'}</span>
         </button>
       </nav>
-      {/* compact mobile dock: only main tabs + More (CSS hides .dk-more on phones) */}
       {more && (
         <div className="more-ov" onMouseDown={(e) => e.target === e.currentTarget && setMore(false)}>
-          <div className="more-sheet" role="dialog" aria-label="More tabs">
+          <div className="more-sheet simple-more" role="dialog" aria-label="More">
             <div className="more-grab" aria-hidden />
-            <div className="more-grid">
+            <div className="more-list">
               {moreTabs.map((t) => (
                 <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => go(t.id)}>
                   <span className="ni" aria-hidden>{t.icon}</span>
-                  <span>{t.label}</span>
+                  <span><b>{t.label}</b><small>{t.hint}</small></span>
                 </button>
               ))}
             </div>
-            <p className="hint center">Keys: {main.concat(moreTabs).map((t) => `${t.key} ${t.label}`).join(' · ')} · ⌘/Ctrl K quick add</p>
           </div>
         </div>
       )}

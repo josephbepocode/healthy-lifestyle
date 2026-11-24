@@ -4,6 +4,7 @@ import '@fontsource-variable/inter'
 import '@fontsource-variable/space-grotesk'
 import './styles.css'
 import './v2.css'
+import './simple.css'
 import App from './App'
 
 // three.js r18x deprecates THREE.Clock, which @react-three/fiber still uses internally — harmless, silence just that line.
